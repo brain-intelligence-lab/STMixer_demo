@@ -36,12 +36,34 @@ class DSPIKE(nn.Module):
         out_s = (x >= 0).float()
         return (out_s.float() - out_bp).detach() + out_bp
 
+class ZDSPIKE(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, input, gama):
+        out = (input >= 0).float()
+        L = torch.tensor([gama])
+        ctx.save_for_backward(input, L)
+        return out
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        (input, others) = ctx.saved_tensors
+        gama = others[0].item()
+        region = 1.0
+        k = 1 / (2 * np.tanh(gama * region))
+        grad_input = grad_output.clone()
+        m = torch.tanh(gama * input)
+        tmp = k * (1 - m * m) * gama
+        tmp[input > region] = 0
+        tmp[input < -region] = 0
+        grad_input = grad_input * tmp
+        return grad_input, None
+
 class LIFSpike(nn.Module):
     def __init__(self, T=1, thresh=1.0, tau=0.5, gamma=2.5, use_ann=False):
         super(LIFSpike, self).__init__()
         self.use_ann = use_ann
         self.act_ann = nn.ReLU()
-        self.snn_act = DSPIKE(region=1.0)
+        self.snn_act = ZDSPIKE.apply
         #self.snn_act = ZIF.apply
         self.T = T # time steps
         self.thresh = thresh
