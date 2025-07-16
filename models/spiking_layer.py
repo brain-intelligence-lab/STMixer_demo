@@ -70,7 +70,7 @@ class LIFSpike(nn.Module):
         self.tau = tau
         self.gamma = gamma
         self.mem_detach = False
-        self.soft_reset = True
+        self.soft_reset = False
 
     def forward(self, x):
         if self.use_ann:
